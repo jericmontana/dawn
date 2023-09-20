@@ -122,21 +122,36 @@
                       open
                     {% endif %}
                   >
+                    {%- liquid
+                      assign filter_value_join = ' , '
+                      if filter.operator == 'AND'
+                        assign filter_value_join = ' + '
+                      endif
+
+                      assign selected_filter_values = filter.active_values | map: 'label' | join: filter_value_join
+                    -%}
                     <summary
                       class="facets__summary caption-large focus-offset"
-                      aria-label="{{ filter.label }} ({{ 'products.facets.filters_selected.one' | t: count: filter.active_values.size }})"
+                      aria-label="{{ filter.label }} {{ selected_filter_values }} ({{ 'products.facets.filters_selected.one' | t: count: filter.active_values.size }})"
                     >
-                      <div>
+                      <div
+                        {% if filter_type == 'vertical' %}
+                          style="position: relative;"
+                        {% endif %}
+                      >
                         <span>
                           {{- filter.label | escape }}
-                          {%- if filter_type == 'vertical' -%}
-                            <span class="facets__selected no-js-hidden{% if filter.active_values.size == 0 %} hidden{% endif %}">
-                              ({{ filter.active_values.size }})</span
-                            >
-                          {%- endif -%}
                         </span>
                         {% render 'icon-caret' %}
                       </div>
+                      {%- if filter_type == 'vertical' -%}
+                        <div class="facets__selected no-js-hidden{% if filter.active_values.size == 0 %} hidden{% endif %}">
+                          <span>
+                            {{ selected_filter_values }}
+                            <span> ({{ filter.active_values.size }})</span>
+                          </span>
+                        </div>
+                      {%- endif -%}
                     </summary>
                     <div
                       id="Facet-{{ forloop.index }}-{{ section.id }}"

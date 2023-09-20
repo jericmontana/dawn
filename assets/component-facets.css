@@ -774,6 +774,11 @@ details.menu-opening .mobile-facets__close svg {
   align-items: center;
 }
 
+.facets__summary > .facets__selected {
+  font-size: 14px;
+  color: #97979A;
+}
+
 .js .mobile-facets__submenu {
   position: absolute;
   top: 0;
