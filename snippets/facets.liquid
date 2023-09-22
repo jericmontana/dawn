@@ -123,16 +123,17 @@
                     {% endif %}
                   >
                     {%- liquid
-                      assign filter_value_join = ' , '
+                      assign active_filter_value_join = ' , '
                       if filter.operator == 'AND'
-                        assign filter_value_join = ' + '
+                        assign active_filter_value_join = ' + '
                       endif
 
-                      assign selected_filter_values = filter.active_values | map: 'label' | join: filter_value_join
+                      assign active_filter_values = filter.active_values | map: 'label' | join: active_filter_value_join
+                      assign active_filter_value_match_count = filter.active_values | sum: 'count'
                     -%}
                     <summary
                       class="facets__summary caption-large focus-offset"
-                      aria-label="{{ filter.label }} {{ selected_filter_values }} ({{ 'products.facets.filters_selected.one' | t: count: filter.active_values.size }})"
+                      aria-label="{{ filter.label }} {{ active_filter_values }} ({{ 'products.facets.filters_selected.one' | t: count: filter.active_values.size }})"
                     >
                       <div
                         {% if filter_type == 'vertical' %}
@@ -147,8 +148,9 @@
                       {%- if filter_type == 'vertical' -%}
                         <div class="facets__selected no-js-hidden{% if filter.active_values.size == 0 %} hidden{% endif %}">
                           <span>
-                            {{ selected_filter_values }}
-                            <span> ({{ filter.active_values.size }})</span>
+                            {{ active_filter_values }}
+                            {% comment %} <span> ({{ filter.active_values.size }})</span> {% endcomment %}
+                            <span> ({{ active_filter_value_match_count }})</span>
                           </span>
                         </div>
                       {%- endif -%}
@@ -160,7 +162,12 @@
                       {%- if filter_type != 'vertical' -%}
                         <div class="facets__header">
                           <span class="facets__selected no-js-hidden">
-                            {{- 'products.facets.filters_selected' | t: count: filter.active_values.size -}}
+                            {% if filter.active_values.size == 0 %}
+                              {{- 'products.facets.filters_selected' | t: count: filter.active_values.size -}}
+                            {% else %}
+                              {{ active_filter_values }}
+                              <span> ({{ filter.active_values.size }})</span>
+                            {% endif %}
                           </span>
                           <facet-remove>
                             <a href="{{ filter.url_to_remove }}" class="facets__reset link underlined-link">
