@@ -70,17 +70,45 @@
                   </facet-remove>
                 </div>
                 {%- for filter in results.filters -%}
-                  {%- for value in filter.active_values -%}
-                    <facet-remove>
-                      <a href="{{ value.url_to_remove }}" class="active-facets__button active-facets__button--light">
-                        <span class="active-facets__button-inner button button--tertiary">
-                          {{ filter.label }}: {{ value.label | escape }}
-                          {% render 'icon-close-small' %}
-                          <span class="visually-hidden">{{ 'products.facets.clear_filter' | t }}</span>
-                        </span>
-                      </a>
-                    </facet-remove>
-                  {%- endfor -%}
+                  {% if filter.operator == 'AND' %}
+                    {% unless filter.active_values.size == 0 %}
+                      {%- assign active_filter_values = filter.active_values | map: 'label' | join: ' + ' -%}
+                      <facet-remove>
+                        <a href="{{ filter.url_to_remove }}" class="active-facets__button active-facets__button--light">
+                          <span class="active-facets__button-inner button button--tertiary">
+                            {{ filter.label }}: {{ active_filter_values | escape }}
+                            {% render 'icon-close-small' %}
+                            <span class="visually-hidden">{{ 'products.facets.clear_filter' | t }}</span>
+                          </span>
+                        </a>
+                      </facet-remove>
+                    {% endunless %}
+                  {% else %}
+                    {%- for value in filter.active_values -%}
+                      <facet-remove>
+                        <a href="{{ value.url_to_remove }}" class="active-facets__button active-facets__button--light">
+                          <span class="active-facets__button-inner button button--tertiary">
+                            {{ filter.label }}: {{ value.label | escape }}
+                            {% render 'icon-close-small' %}
+                            <span class="visually-hidden">{{ 'products.facets.clear_filter' | t }}</span>
+                          </span>
+                        </a>
+                      </facet-remove>
+                    {%- endfor -%}
+                  {% endif %}
+                  {% comment %}
+                    {%- for value in filter.active_values -%}
+                      <facet-remove>
+                        <a href="{{ value.url_to_remove }}" class="active-facets__button active-facets__button--light">
+                          <span class="active-facets__button-inner button button--tertiary">
+                            {{ filter.label }}: {{ value.label | escape }}
+                            {% render 'icon-close-small' %}
+                            <span class="visually-hidden">{{ 'products.facets.clear_filter' | t }}</span>
+                          </span>
+                        </a>
+                      </facet-remove>
+                    {%- endfor -%}
+                  {% endcomment %}
                   {% if filter.type == 'price_range' %}
                     {%- if filter.min_value.value != null or filter.max_value.value != null -%}
                       <facet-remove>
@@ -128,8 +156,22 @@
                         assign active_filter_value_join = ' + '
                       endif
 
-                      assign active_filter_values = filter.active_values | map: 'label' | join: active_filter_value_join
-                      assign active_filter_value_match_count = filter.active_values | sum: 'count'
+                      ## assign active_filter_values = filter.active_values | map: 'label' | join: active_filter_value_join
+                      ## assign active_filter_value_match_count = filter.active_values | sum: 'count'
+                      assign active_filter_values = ''
+                      assign active_filter_value_match_count = 0
+
+                      for active_filter in filter.active_values
+                        if active_filter_values == ''
+                          assign active_filter_values = active_filter.label
+                        else
+                          assign active_filter_values = active_filter_values | append: active_filter_value_join | append: active_filter.label
+                        endif
+
+                        if filter.operator == 'AND' and active_filter.count > active_filter_value_match_count
+                          assign active_filter_value_match_count = active_filter.count
+                        endif
+                      endfor
                     -%}
                     <summary
                       class="facets__summary caption-large focus-offset"
@@ -150,7 +192,7 @@
                           <span>
                             {{ active_filter_values }}
                             {% comment %} <span> ({{ filter.active_values.size }})</span> {% endcomment %}
-                            <span> ({{ active_filter_value_match_count }})</span>
+                            <span class="hidden"> ({{ active_filter_value_match_count }})</span>
                           </span>
                         </div>
                       {%- endif -%}
@@ -182,7 +224,21 @@
                           class="{% if filter_type != 'vertical' %} facets__list{% endif %} list-unstyled no-js-hidden"
                           role="list"
                         >
-                          {%- for value in filter.values -%}
+                          {%- liquid
+                            assign non_zero_count_values = '' | split: ''
+                            assign zero_count_values = filter.values | where: 'count', 0
+
+                            # Create the non_zero_count_values list
+                            for filter_value in filter.values
+                              if filter_value.count != 0
+                                assign filter_value_to_concat = filter.values | where: 'value', filter_value.value
+                                assign non_zero_count_values = non_zero_count_values | concat: filter_value_to_concat
+                              endif
+                            endfor
+
+                            assign sorted_values = non_zero_count_values | concat: zero_count_values
+                          -%}
+                          {%- for value in sorted_values -%}
                             <li class="list-menu__item facets__item{% if forloop.index > 10 and filter_type == 'vertical' %} show-more-item hidden{% endif %}">
                               <label
                                 for="Filter-{{ filter.param_name | escape }}-{{ forloop.index }}"
@@ -240,6 +296,66 @@
                               </label>
                             </li>
                           {%- endfor -%}
+                          {% comment %}
+                            {%- for value in filter.values -%}
+                              <li class="list-menu__item facets__item{% if forloop.index > 10 and filter_type == 'vertical' %} show-more-item hidden{% endif %}">
+                                <label
+                                  for="Filter-{{ filter.param_name | escape }}-{{ forloop.index }}"
+                                  class="facet-checkbox{% if value.count == 0 and value.active == false %} facet-checkbox--disabled{% endif %}"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    name="{{ value.param_name }}"
+                                    value="{{ value.value }}"
+                                    id="Filter-{{ filter.param_name | escape }}-{{ forloop.index }}"
+                                    {% if value.active %}
+                                      checked
+                                    {% endif %}
+                                    {% if value.count == 0 and value.active == false %}
+                                      disabled
+                                    {% endif %}
+                                  >
+
+                                  <svg
+                                    width="1.6rem"
+                                    height="1.6rem"
+                                    viewBox="0 0 16 16"
+                                    aria-hidden="true"
+                                    focusable="false"
+                                  >
+                                    <rect width="16" height="16" stroke="currentColor" fill="none" stroke-width="1"></rect>
+                                  </svg>
+
+                                  <svg
+                                    aria-hidden="true"
+                                    class="icon icon-checkmark"
+                                    width="1.1rem"
+                                    height="0.7rem"
+                                    viewBox="0 0 11 7"
+                                    fill="none"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                  >
+                                    <path d="M1.5 3.5L2.83333 4.75L4.16667 6L9.5 1"
+                                      stroke="currentColor"
+                                      stroke-width="1.75"
+                                      stroke-linecap="round"
+                                      stroke-linejoin="round" />
+                                  </svg>
+
+                                  <span aria-hidden="true">{{ value.label | escape }} ({{ value.count }})</span>
+                                  <span class="visually-hidden">
+                                    {{- value.label | escape }} (
+                                    {%- if value.count == 1 -%}
+                                      {{- 'products.facets.product_count_simple.one' | t: count: value.count -}}
+                                    {%- else -%}
+                                      {{- 'products.facets.product_count_simple.other' | t: count: value.count -}}
+                                    {%- endif -%}
+                                    )</span
+                                  >
+                                </label>
+                              </li>
+                            {%- endfor -%}
+                          {% endcomment %}
                         </ul>
                         {% comment %} No show more for no JS {% endcomment %}
                         <ul

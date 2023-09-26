@@ -227,6 +227,9 @@
   text-decoration: underline;
   text-underline-offset: 0.3rem;
 }
+.facets__summary:hover .facets__selected span {
+  text-decoration: none;
+}
 
 .disclosure-has-popup[open] > .facets__summary::before {
   z-index: 2;
@@ -776,8 +779,10 @@ details.menu-opening .mobile-facets__close svg {
 }
 
 .facets__summary > .facets__selected {
-  font-size: 14px;
-  color: #97979A;
+  font-size: 13px;
+  color: rgba(var(--color-foreground), 0.65);
+  animation: var(--animation-fade-in);
+  text-decoration: none;
 }
 
 .js .mobile-facets__submenu {
